@@ -16,7 +16,13 @@ async function sha(value){const digest=await crypto.subtle.digest("SHA-256",new 
 async function body(request){try{return await request.json()}catch{return null}}
 async function route(request,env){
  const url=new URL(request.url),path=url.pathname,method=request.method;
- if(path==="/api/health"&&method==="GET")return json({status:"ok",database:!!env.DB});
+ if(path==="/api/health"&&method==="GET"){
+  if(!env.DB)return json({status:"error",database:false,error:"D1 binding DB is missing"},500);
+  try{
+   const result=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
+   return json({status:"ok",database:true,tables:(result.results||[]).map(x=>x.name)});
+  }catch(e){return json({status:"error",database:true,error:String(e.message||e)},500)}
+ }
  if(path==="/api/auth/register"&&method==="POST"){
   const b=await body(request);if(!b)return fail("Некорректный JSON");
   const username=String(b.username||"").trim(),password=String(b.password||"");
